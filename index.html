@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Master — Interactive Quiz App</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: radial-gradient(900px 500px at 10% -10%, rgba(124,92,255,.25), transparent 60%),
+        radial-gradient(800px 500px at 110% 110%, rgba(0,217,255,.15), transparent 55%),
+        #0f1226;
+  --card: rgba(255,255,255,.05);
+  --item: rgba(255,255,255,.04);
+  --input: rgba(0,0,0,.25);
+  --border: rgba(255,255,255,.1);
+  --hover: rgba(124,92,255,.14);
+  --text: #eef0ff;
+  --muted: #9aa3c7;
+  --accent: #7c5cff;
+  --accent2: #00d9ff;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --shadow: 0 24px 60px rgba(0,0,0,.45);
+  --badge-bg: rgba(124,92,255,.25);
+  --badge-text: #c7b8ff;
+}
+[data-theme="light"] {
+  --bg: radial-gradient(900px 500px at 10% -10%, rgba(124,92,255,.14), transparent 60%),
+        radial-gradient(800px 500px at 110% 110%, rgba(0,150,200,.12), transparent 55%),
+        #eef1fb;
+  --card: rgba(255,255,255,.78);
+  --item: rgba(255,255,255,.7);
+  --input: #ffffff;
+  --border: rgba(25,35,80,.12);
+  --hover: rgba(98,68,255,.09);
+  --text: #1c2340;
+  --muted: #5c6584;
+  --accent: #6244ff;
+  --accent2: #0083b5;
+  --shadow: 0 24px 60px rgba(40,50,120,.18);
+  --badge-bg: rgba(98,68,255,.15);
+  --badge-text: #5336d9;
+}
+
+body {
+  font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  color: var(--text);
+  background: var(--bg);
+  background-attachment: fixed;
+}
+
+/* ===== KONTROL MELAYANG (suara & tema) ===== */
+.floating-controls { position: fixed; top: 16px; right: 16px; display: flex; gap: 10px; z-index: 60; }
+.floating-controls button {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--card);
+  backdrop-filter: blur(10px); cursor: pointer; font-size: 1.1rem;
+  transition: .2s; color: var(--text);
+}
+.floating-controls button:hover { transform: translateY(-2px); border-color: var(--accent); }
+
+/* ===== KARTU & LAYAR ===== */
+.card {
+  width: 100%; max-width: 600px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 36px 32px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  animation: pop .45s ease both;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(16px) scale(.98);} to { opacity: 1; transform: none;} }
+.hidden { display: none !important; }
+
+/* ===== START ===== */
+.logo { font-size: 58px; text-align: center; }
+h1 {
+  text-align: center; font-size: 1.8rem; margin: 6px 0 10px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.subtitle { text-align: center; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+.rules {
+  background: var(--item); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px 20px; margin-bottom: 22px;
+}
+.rules li { list-style: none; color: var(--muted); padding: 5px 0; font-size: .92rem; }
+
+#player-name {
+  width: 100%; padding: 14px 16px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--input);
+  color: var(--text); font-size: 1rem; font-family: inherit;
+  margin-bottom: 6px; outline: none; transition: .2s;
+}
+#player-name::placeholder { color: var(--muted); }
+#player-name:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,255,.2); }
+
+.btn {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  font-size: 1rem; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: .2s; margin-top: 10px;
+}
+.btn-primary { background: linear-gradient(90deg, var(--accent), #5a8bff); color: #fff; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(124,92,255,.35); }
+.btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+#best-score { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 16px; }
+
+/* ===== HEADER QUIZ + TIMER MELINGKAR ===== */
+.quiz-header { display: flex; align-items: center; gap: 18px; margin-bottom: 16px; }
+.quiz-meta { flex: 1; min-width: 0; }
+.quiz-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: .85rem; font-weight: 600; }
+.progress-track { height: 10px; background: var(--item); border: 1px solid var(--border); border-radius: 99px; overflow: hidden; margin: 10px 0 8px; }
+#progress-bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; transition: width .4s ease; }
+.meta-row { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); font-weight: 600; }
+#score-live { color: var(--accent2); }
+#score-wrap { position: relative; display: inline-block; }
+.points-float {
+  position: absolute; right: 0; top: -6px; white-space: nowrap;
+  color: var(--success); font-weight: 800;
+  animation: floatUp 1.1s ease forwards;
+}
+@keyframes floatUp { from { opacity: 1; transform: translateY(0);} to { opacity: 0; transform: translateY(-26px);} }
+
+.timer-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+.timer-wrap svg { width: 100%; height: 100%; display: block; }
+.timer-bg { fill: none; stroke: var(--border); stroke-width: 8; }
+#timer-circle {
+  fill: none; stroke: var(--success); stroke-width: 8; stroke-linecap: round;
+  stroke-dasharray: 283; stroke-dashoffset: 0;
+  transform: rotate(-90deg); transform-origin: 50% 50%;
+}
+#timer-circle.danger { stroke: var(--danger); }
+#timer-text { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; font-size: 1.35rem; }
+#timer-text.danger { color: var(--danger); }
+
+.topic-badge { padding: 3px 10px; border-radius: 99px; font-size: .68rem; font-weight: 700; letter-spacing: .5px; }
+.t-html { background: rgba(245,158,11,.18); color: #e5940b; }
+.t-css  { background: rgba(34,182,207,.16); color: #1a9bb5; }
+.t-js   { background: rgba(234,179,8,.18); color: #b8930a; }
+
+#question-text { font-size: 1.22rem; line-height: 1.55; margin-bottom: 20px; }
+
+/* ===== JAWABAN ===== */
+#answers { display: flex; flex-direction: column; gap: 12px; }
+.answer-btn {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  padding: 13px 16px; border-radius: 14px; border: 1px solid var(--border);
+  background: var(--item); color: var(--text); font-size: .98rem; font-family: inherit;
+  cursor: pointer; transition: transform .15s, border-color .15s, background .15s;
+}
+.answer-btn:hover { border-color: var(--accent); background: var(--hover); transform: translateX(5px); }
+.answer-btn .badge {
+  flex-shrink: 0; width: 30px; height: 30px; display: grid; place-items: center;
+  border-radius: 8px; background: var(--badge-bg); color: var(--badge-text); font-weight: 700; font-size: .85rem;
+}
+#answers.locked .answer-btn { pointer-events: none; }
+.answer-btn.correct { background: rgba(34,197,94,.16); border-color: var(--success); }
+.answer-btn.correct .badge { background: var(--success); color: #fff; }
+.answer-btn.wrong { background: rgba(239,68,68,.16); border-color: var(--danger); animation: shake .4s; }
+.answer-btn.wrong .badge { background: var(--danger); color: #fff; }
+.answer-btn.dim { opacity: .4; }
+.answer-btn.eliminated { opacity: .3; pointer-events: none; text-decoration: line-through; }
+@keyframes shake { 0%,100% { transform: translateX(0);} 20%,60% { transform: translateX(-7px);} 40%,80% { transform: translateX(7px);} }
+
+.quiz-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+.chip-btn {
+  padding: 9px 16px; border-radius: 99px; border: 1px solid var(--border);
+  background: var(--item); color: var(--muted); font-weight: 600; font-size: .84rem;
+  font-family: inherit; cursor: pointer; transition: .2s;
+}
+.chip-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+.chip-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+#feedback { min-height: 26px; text-align: center; font-weight: 700; margin-top: 14px; }
+#feedback.good { color: var(--success); }
+#feedback.bad  { color: var(--danger); }
+
+/* ===== HASIL ===== */
+#result-emoji { font-size: 64px; text-align: center; }
+#result-title { text-align: center; font-size: 1.5rem; margin: 6px 0 2px; }
+#result-score {
+  text-align: center; font-size: 3rem; font-weight: 800; margin: 6px 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+#result-score small { font-size: 1rem; font-weight: 600; color: var(--muted); -webkit-text-fill-color: var(--muted); }
+.result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 8px; }
+.stat-box { background: var(--item); border: 1px solid var(--border); border-radius: 14px; padding: 16px 10px; text-align: center; }
+.stat-num { display: block; font-size: 1.35rem; font-weight: 800; color: var(--accent2); }
+.stat-label { font-size: .72rem; color: var(--muted); }
+.record {
+  display: block; text-align: center; margin: 12px auto 4px; width: fit-content;
+  padding: 8px 18px; border-radius: 99px; font-weight: 700; font-size: .9rem;
+  background: linear-gradient(90deg, #f59e0b, #ef4444); color: #fff;
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse { 0%,100% { transform: scale(1);} 50% { transform: scale(1.06);} }
+
+/* ===== REVIEW ===== */
+#review-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+.review-item {
+  background: var(--item); border: 1px solid var(--border); border-left: 4px solid var(--muted);
+  border-radius: 14px; padding: 16px 18px;
+}
+.review-item.correct { border-left-color: var(--success); }
+.review-item.wrong { border-left-color: var(--danger); }
+.review-q { font-weight: 600; margin-bottom: 10px; line-height: 1.55; font-size: .95rem; }
+.review-line { margin: 5px 0; }
+.tag { display: inline-block; padding: 4px 12px; border-radius: 8px; font-size: .84rem; font-weight: 600; }
+.tag-good { background: rgba(34,197,94,.15); color: var(--success); }
+.tag-bad  { background: rgba(239,68,68,.15); color: var(--danger); }
+.tag-key  { background: rgba(124,92,255,.15); color: var(--accent); }
+.review-exp { margin-top: 10px; color: var(--muted); font-size: .84rem; line-height: 1.65; }
+
+/* ===== HIGH SCORE & STATISTIK ===== */
+#highscore-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.hs-item {
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+  border-radius: 12px; background: var(--item); border: 1px solid var(--border);
+}
+.hs-rank { font-size: 1.25rem; width: 34px; text-align: center; font-weight: 700; color: var(--muted); }
+.hs-info { flex: 1; overflow: hidden; }
+.hs-name { font-weight: 600; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-date { font-size: .73rem; color: var(--muted); }
+.hs-right { text-align: right; }
+.hs-score { font-weight: 700; color: var(--accent2); display: block; }
+.hs-sub { font-size: .73rem; color: var(--muted); }
+.empty { text-align: center; color: var(--muted); padding: 24px 0; line-height: 1.7; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+
+.confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 999; }
+
+@media (max-width: 480px) {
+  .card { padding: 26px 20px; }
+  h1 { font-size: 1.5rem; }
+  .stat-num { font-size: 1.15rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- Kontrol global: suara & tema -->
+<div class="floating-controls">
+  <button id="btn-sound" title="Suara">🔊</button>
+  <button id="btn-theme" title="Ganti tema">☀️</button>
+</div>
+
+<!-- ============ START ============ -->
+<div class="card" id="start-screen">
+  <div class="logo">🧠</div>
+  <h1>Quiz Master</h1>
+  <p class="subtitle">Uji pemahaman dasar Web Development kamu!<br>Soal diacak setiap kali bermain.</p>
+  <ul class="rules">
+    <li>📚 Bank 15 soal — 10 soal diacak setiap sesi</li>
+    <li>⏱️ 15 detik per soal, semakin cepat menjawab poin makin besar</li>
+    <li>🔥 Streak 3x benar beruntun = bonus 50 poin</li>
+    <li>✂️ Lifeline 50:50 — sekali per sesi</li>
+    <li>🏆 10 skor terbaik & statistik tersimpan di localStorage</li>
+  </ul>
+  <input type="text" id="player-name" placeholder="Masukkan nama kamu..." maxlength="20">
+  <button class="btn btn-primary" id="btn-start">🚀 Mulai Quiz</button>
+  <button class="btn btn-secondary" id="btn-highscores">🏆 High Scores</button>
+  <button class="btn btn-secondary" id="btn-stats">📊 Statistik Saya</button>
+  <p id="best-score"></p>
+</div>
+
+<!-- ============ QUIZ ============ -->
+<div class="card hidden" id="quiz-screen">
+  <div class="quiz-header">
+    <div class="quiz-meta">
+      <div class="quiz-top">
+        <span id="question-count">Pertanyaan 1/10</span>
+        <span class="topic-badge t-html" id="topic-badge">HTML</span>
+      </div>
+      <div class="progress-track"><div id="progress-bar"></div></div>
+      <div class="meta-row">
+        <span id="streak-live">🔥 x0</span>
+        <span id="score-wrap"><span id="score-live">Skor: 0</span></span>
+      </div>
+    </div>
+    <div class="timer-wrap">
+      <svg viewBox="0 0 100 100">
+        <circle class="timer-bg" cx="50" cy="50" r="45"/>
+        <circle id="timer-circle" cx="50" cy="50" r="45"/>
+      </svg>
+      <span id="timer-text">15</span>
+    </div>
+  </div>
+
+  <h2 id="question-text"></h2>
+  <div id="answers"><!-- dirender lewat JS, dikendalikan EVENT DELEGATION --></div>
+  <div id="feedback"></div>
+
+  <div class="quiz-actions">
+    <button class="chip-btn" id="btn-lifeline">✂️ 50:50 (1x)</button>
+    <button class="chip-btn" id="btn-quit">✖ Keluar</button>
+  </div>
+</div>
+
+<!-- ============ HASIL ============ -->
+<div class="card hidden" id="result-screen">
+  <div id="result-emoji">🎉</div>
+  <h2 id="result-title"></h2>
+  <div id="result-score"></div>
+  <div class="result-grid">
+    <div class="stat-box"><span class="stat-num" id="result-correct">0/10</span><span class="stat-label">Jawaban Benar</span></div>
+    <div class="stat-box"><span class="stat-num" id="result-accuracy">0%</span><span class="stat-label">Akurasi</span></div>
+    <div class="stat-box"><span class="stat-num" id="result-streak">0</span><span class="stat-label">Streak Terbaik</span></div>
+  </div>
+  <div id="new-record" class="record hidden">🏅 HIGH SCORE BARU!</div>
+  <button class="btn btn-primary" id="btn-again">🔁 Main Lagi</button>
+  <button class="btn btn-secondary" id="btn-review">📝 Lihat Review Jawaban</button>
+  <button class="btn btn-secondary" id="btn-highscores-2">🏆 High Scores</button>
+  <button class="btn btn-secondary" id="btn-home">🏠 Beranda</button>
+</div>
+
+<!-- ============ REVIEW ============ -->
+<div class="card hidden" id="review-screen">
+  <h1>📝 Review Jawaban</h1>
+  <p class="subtitle">Pelajari jawaban yang salah lewat pembahasan di bawah setiap soal.</p>
+  <div id="review-list"></div>
+  <button class="btn btn-primary" id="btn-back-result">← Kembali ke Hasil</button>
+  <button class="btn btn-secondary" id="btn-home-2">🏠 Beranda</button>
+</div>
+
+<!-- ============ HIGH SCORES ============ -->
+<div class="card hidden" id="highscore-screen">
+  <h1>🏆 High Scores</h1>
+  <p class="subtitle">10 skor terbaik — tersimpan permanen di localStorage</p>
+  <div id="highscore-list"></div>
+  <button class="btn btn-secondary" id="btn-back">← Kembali</button>
+  <button class="btn btn-secondary" id="btn-clear">🗑️ Hapus Semua Skor</button>
+</div>
+
+<!-- ============ STATISTIK ============ -->
+<div class="card hidden" id="stats-screen">
+  <h1>📊 Statistik Saya</h1>
+  <p class="subtitle">Rekap seluruh permainanmu, tersimpan di localStorage</p>
+  <div class="stats-grid">
+    <div class="stat-box"><span class="stat-num" id="stat-games">0</span><span class="stat-label">Total Permainan</span></div>
+    <div class="stat-box"><span class="stat-num" id="stat-accuracy">0%</span><span class="stat-label">Akurasi Keseluruhan</span></div>
+    <div class="stat-box"><span class="stat-num" id="stat-total-correct">0</span><span class="stat-label">Total Jawaban Benar</span></div>
+    <div class="stat-box"><span class="stat-num" id="stat-best-streak">0</span><span class="stat-label">Streak Terbaik</span></div>
+  </div>
+  <div class="stat-box" style="margin-bottom:20px"><span class="stat-num" id="stat-best-score">0</span><span class="stat-label">Skor Tertinggi (poin)</span></div>
+  <button class="btn btn-secondary" id="btn-back-2">← Kembali</button>
+  <button class="btn btn-secondary" id="btn-reset-stats">♻️ Reset Statistik</button>
+</div>
+
+<script>
+/* ============================================================
+   BANK SOAL — 15 soal (HTML / CSS / JS), diacak 10 per sesi
+   Catatan: teks soal memakai karakter asli (dirender via
+   textContent); opsi & pembahasan memakai entity (&lt;) karena
+   dirender via innerHTML.
+============================================================ */
+const QUESTION_POOL = [
+  { topic:'HTML',
+    question:'Apa kepanjangan dari HTML?',
+    options:['HighText Machine Language','HyperTool Multi Language','HyperText Markup Language','HomeTool Markup Language'],
+    answer:2,
+    explanation:'HTML = HyperText Markup Language, bahasa markup standar untuk membangun struktur halaman web.' },
+  { topic:'HTML',
+    question:'Tag yang digunakan untuk membuat daftar TIDAK berurutan (unordered list) adalah...',
+    options:['&lt;ul&gt;','&lt;ol&gt;','&lt;li&gt;','&lt;dl&gt;'],
+    answer:0,
+    explanation:'&lt;ul&gt; (unordered list) menjadi wadah dan setiap itemnya dibungkus &lt;li&gt;. &lt;ol&gt; untuk daftar bernomor.' },
+  { topic:'HTML',
+    question:'Tag untuk membuat tautan (link) ke halaman lain adalah...',
+    options:['&lt;link&gt;','&lt;a&gt;','&lt;href&gt;','&lt;nav&gt;'],
+    answer:1,
+    explanation:'Tautan dibuat dengan &lt;a href="url"&gt;teks&lt;/a&gt;. Tag &lt;link&gt; dipakai di &lt;head&gt; untuk memuat CSS eksternal.' },
+  { topic:'HTML',
+    question:'Attribute pada tag <img> yang berfungsi sebagai teks alternatif gambar adalah...',
+    options:['title','src','alt','caption'],
+    answer:2,
+    explanation:'Attribute alt menampilkan teks pengganti jika gambar gagal dimuat, dan dibacakan screen reader untuk aksesibilitas.' },
+  { topic:'CSS',
+    question:'Property CSS untuk mengubah warna TEKS adalah...',
+    options:['background-color','font-style','text-decoration','color'],
+    answer:3,
+    explanation:'color mengatur warna teks, sedangkan background-color mengatur warna latar belakang elemen.' },
+  { topic:'CSS',
+    question:'Selector CSS yang menargetkan elemen berdasarkan ID adalah...',
+    options:['.nama-id','#nama-id','*nama-id','@nama-id'],
+    answer:1,
+    explanation:'Titik (.) untuk class, pagar (#) untuk ID. ID bersifat unik — hanya boleh satu elemen per halaman.' },
+  { topic:'CSS',
+    question:'Dengan box-sizing: border-box, properti width elemen...',
+    options:['Hanya menghitung konten','Sudah termasuk padding dan border','Sudah termasuk margin','Otomatis menjadi 100% layar'],
+    answer:1,
+    explanation:'border-box membuat width sudah mencakup konten + padding + border sehingga ukuran lebih mudah dikontrol. Margin tetap di luar.' },
+  { topic:'JS',
+    question:'Bahasa pemrograman yang berjalan langsung di browser (client-side) adalah...',
+    options:['PHP','JavaScript','Python','SQL'],
+    answer:1,
+    explanation:'JavaScript didukung native oleh semua browser modern. PHP, Python, dan SQL umumnya berjalan di sisi server.' },
+  { topic:'JS',
+    question:'Method yang tepat untuk MENYIMPAN data ke localStorage adalah...',
+    options:['localStorage.getItem()','localStorage.removeItem()','localStorage.setItem()','localStorage.push()'],
+    answer:2,
+    explanation:'localStorage.setItem(key, value) menyimpan data sebagai string. Ambil dengan getItem(), hapus dengan removeItem().' },
+  { topic:'JS',
+    question:'Teknik memasang SATU event listener di parent untuk menangani event semua elemen anaknya disebut...',
+    options:['Event Delegation','Event Bubbling','Event Capturing','Event Propagation'],
+    answer:0,
+    explanation:'Event delegation memanfaatkan event bubbling: event anak "naik" ke parent, jadi cukup satu listener untuk banyak elemen — termasuk yang dibuat dinamis.' },
+  { topic:'JS',
+    question:'Fungsi JSON.stringify() adalah untuk...',
+    options:['Mengubah string JSON menjadi objek JavaScript','Mengubah objek JavaScript menjadi string JSON','Menghapus data dari JSON','Membuat elemen HTML baru'],
+    answer:1,
+    explanation:'localStorage hanya bisa menyimpan string, maka objek dikonversi dulu dengan JSON.stringify() dan dibaca kembali dengan JSON.parse().' },
+  { topic:'JS',
+    question:'Manakah yang BUKAN tipe data primitif di JavaScript?',
+    options:['String','Boolean','Array','Number'],
+    answer:2,
+    explanation:'Tipe primitif: string, number, boolean, undefined, null, symbol, bigint. Array termasuk tipe object.' },
+  { topic:'JS',
+    question:'Operator yang membandingkan nilai DAN tipe data secara ketat adalah...',
+    options:['==','===','=','!='],
+    answer:1,
+    explanation:'== melakukan konversi tipe ("5" == 5 → true), sedangkan === tanpa konversi ("5" === 5 → false).' },
+  { topic:'JS',
+    question:'Method untuk menambahkan elemen baru di AKHIR array adalah...',
+    options:['shift()','unshift()','pop()','push()'],
+    answer:3,
+    explanation:'push() menambah di akhir, unshift() di awal. Sebaliknya pop() menghapus dari akhir, shift() dari awal.' },
+  { topic:'JS',
+    question:'Fungsi document.querySelector() akan mengembalikan...',
+    options:['Semua elemen yang cocok','Elemen PERTAMA yang cocok dengan selector CSS','Elemen TERAKHIR yang cocok','Array berisi semua elemen'],
+    answer:1,
+    explanation:'querySelector() mengembalikan elemen pertama yang cocok; gunakan querySelectorAll() untuk semua elemen (berupa NodeList).' },
+];
+
+const QUIZ_LENGTH = 10;
+const TIME_PER_QUESTION = 15;
+const HS_KEY  = 'quiz_highscores_v2';
+const STAT_KEY = 'quiz_stats_v1';
+
+/* ============================================================
+   STATE & UTIL
+============================================================ */
+const state = {
+  name: 'Anonim', questions: [], current: 0,
+  score: 0, correctCount: 0, streak: 0, bestStreak: 0,
+  locked: false, timeLeft: TIME_PER_QUESTION, timerId: null,
+  lifelineUsed: false, answersLog: []
+};
+
+const $ = id => document.getElementById(id);
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function escapeHTML(str) {
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ============================================================
+   EFEK SUARA (Web Audio API — tanpa file eksternal)
+============================================================ */
+const Sound = {
+  enabled: (() => { try { return JSON.parse(localStorage.getItem('quiz_sound')) !== false; } catch { return true; } })(),
+  ctx: null,
+  ensure() {
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    return this.ctx;
+  },
+  tone(freq, start, duration, type = 'sine', volume = .12) {
+    if (!this.enabled) return;
+    try {
+      const ctx = this.ensure();
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = type; osc.frequency.value = freq;
+      const t = ctx.currentTime + start;
+      gain.gain.setValueAtTime(volume, t);
+      gain.gain.exponentialRampToValueAtTime(.001, t + duration);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t); osc.stop(t + duration);
+    } catch (e) {}
+  },
+  click()   { this.tone(600, 0, .06, 'square', .05); },
+  correct() { this.tone(523, 0, .12); this.tone(784, .1, .2); },
+  wrong()   { this.tone(220, 0, .2, 'sawtooth', .08); this.tone(160, .12, .28, 'sawtooth', .08); },
+  timeout() { this.tone(330, 0, .15, 'triangle'); this.tone(220, .15, .3, 'triangle'); },
+  tick()    { this.tone(1000, 0, .04, 'square', .04); },
+  victory() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, i * .13, .22)); }
+};
+
+/* ============================================================
+   LOCALSTORAGE — HIGH SCORE (top 10) & STATISTIK
+============================================================ */
+function getHighScores() {
+  try { return JSON.parse(localStorage.getItem(HS_KEY)) || []; }
+  catch { return []; }
+}
+function saveHighScore(entry) {
+  const scores = getHighScores();
+  scores.push(entry);
+  scores.sort((a, b) => b.score - a.score);
+  localStorage.setItem(HS_KEY, JSON.stringify(scores.slice(0, 10))); // simpan 10 terbaik
+}
+function getStats() {
+  try {
+    return JSON.parse(localStorage.getItem(STAT_KEY)) ||
+      { games: 0, totalCorrect: 0, totalQuestions: 0, bestStreak: 0, bestScore: 0 };
+  } catch { return { games: 0, totalCorrect: 0, totalQuestions: 0, bestStreak: 0, bestScore: 0 }; }
+}
+function saveStats(s) { localStorage.setItem(STAT_KEY, JSON.stringify(s)); }
+
+/* ============================================================
+   EVENT DELEGATION (REQUIREMENT INTI)
+   Satu listener di parent #answers untuk SEMUA tombol jawaban,
+   termasuk tombol yang dirender ulang tiap pertanyaan.
+============================================================ */
+ $('answers').addEventListener('click', e => {
+  const btn = e.target.closest('.answer-btn');
+  if (!btn || state.locked || btn.classList.contains('eliminated')) return;
+  handleAnswer(parseInt(btn.dataset.index));
+});
+
+// Shortcut keyboard: tekan 1–4 untuk menjawab
+document.addEventListener('keydown', e => {
+  if ($('quiz-screen').classList.contains('hidden')) return;
+  if (['1', '2', '3', '4'].includes(e.key)) {
+    const idx = +e.key - 1;
+    const btn = document.querySelectorAll('.answer-btn')[idx];
+    if (btn && !btn.classList.contains('eliminated')) handleAnswer(idx);
+  }
+});
+
+/* ============================================================
+   NAVIGASI LAYAR
+============================================================ */
+const SCREENS = ['start-screen','quiz-screen','result-screen','review-screen','highscore-screen','stats-screen'];
+
+function showScreen(id) {
+  SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id));
+  if (id === 'start-screen')    updateBestScore();
+  if (id === 'highscore-screen') renderHighScores();
+  if (id === 'stats-screen')    renderStats();
+}
+
+function updateBestScore() {
+  const scores = getHighScores();
+  $('best-score').textContent = scores.length
+    ? `🏆 Rekor: ${scores[0].score} poin — ${scores[0].name} (${scores[0].correct}/${scores[0].total})`
+    : 'Belum ada rekor — jadilah yang pertama! 🚀';
+}
+
+/* ============================================================
+   ALUR QUIZ
+============================================================ */
+function startQuiz() {
+  state.name = ($('player-name').value.trim() || 'Anonim').slice(0, 20);
+
+  // ambil 10 soal acak + acak urutan opsinya
+  state.questions = shuffle(QUESTION_POOL).slice(0, QUIZ_LENGTH).map(q => ({
+    topic: q.topic, question: q.question, explanation: q.explanation,
+    options: shuffle(q.options.map((text, i) => ({ text, correct: i === q.answer })))
+  }));
+
+  state.current = 0; state.score = 0; state.correctCount = 0;
+  state.streak = 0; state.bestStreak = 0; state.answersLog = []; state.lifelineUsed = false;
+  updateMetaUI();
+
+  const lb = $('btn-lifeline');
+  lb.disabled = false; lb.textContent = '✂️ 50:50 (1x)';
+
+  Sound.click();
+  showScreen('quiz-screen');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  state.locked = false;
+  $('answers').classList.remove('locked');
+  showFeedback('', '');
+
+  const q = state.questions[state.current];
+  const total = state.questions.length;
+
+  $('question-count').textContent = `Pertanyaan ${state.current + 1}/${total}`;
+  const tb = $('topic-badge');
+  tb.textContent = q.topic;
+  tb.className = 'topic-badge t-' + q.topic.toLowerCase();
+  $('progress-bar').style.width = (state.current / total * 100) + '%';
+  $('question-text').textContent = q.question;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  $('answers').innerHTML = q.options.map((opt, i) => `
+    <button class="answer-btn" data-index="${i}">
+      <span class="badge">${letters[i]}</span><span>${opt.text}</span>
+    </button>`).join('');
+
+  startTimer();
+}
+
+function handleAnswer(index) {
+  if (state.locked) return;
+  state.locked = true;
+  clearInterval(state.timerId);
+  $('answers').classList.add('locked');
+
+  const q = state.questions[state.current];
+  const correctIndex = q.options.findIndex(o => o.correct);
+  const isCorrect = index === correctIndex;
+
+  document.querySelectorAll('.answer-btn').forEach((btn, i) => {
+    if (i === correctIndex)      btn.classList.add('correct');
+    else if (i === index)        btn.classList.add('wrong');
+    else                         btn.classList.add('dim');
+  });
+
+  let gained = 0;
+  if (isCorrect) {
+    state.streak++;
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+    state.correctCount++;
+    // poin = dasar 100 + bonus kecepatan (10/sisa detik) + bonus streak
+    gained = 100 + state.timeLeft * 10 + (state.streak >= 3 ? 50 : 0);
+    state.score += gained;
+    showPoints(gained);
+    Sound.correct();
+    showFeedback(`✅ Benar! +${gained} poin${state.streak >= 3 ? ' 🔥 Bonus streak!' : ''}`, 'good');
+  } else {
+    state.streak = 0;
+    Sound.wrong();
+    showFeedback('❌ Salah! Jawaban benar ditandai hijau.', 'bad');
+  }
+  updateMetaUI();
+
+  state.answersLog.push({
+    question: q.question, topic: q.topic, explanation: q.explanation,
+    chosenText: q.options[index].text, correctText: q.options[correctIndex].text, isCorrect
+  });
+  setTimeout(nextQuestion, 1500);
+}
+
+function handleTimeout() {
+  state.locked = true;
+  $('answers').classList.add('locked');
+  const q = state.questions[state.current];
+  const correctIndex = q.options.findIndex(o => o.correct);
+
+  document.querySelectorAll('.answer-btn').forEach((btn, i) => {
+    if (i === correctIndex) btn.classList.add('correct');
+    else                    btn.classList.add('dim');
+  });
+
+  state.streak = 0;
+  updateMetaUI();
+  Sound.timeout();
+  showFeedback('⏰ Waktu habis!', 'bad');
+
+  state.answersLog.push({
+    question: q.question, topic: q.topic, explanation: q.explanation,
+    chosenText: null, correctText: q.options[correctIndex].text, isCorrect: false
+  });
+  setTimeout(nextQuestion, 1500);
+}
+
+function nextQuestion() {
+  state.current++;
+  if (state.current >= state.questions.length) finishQuiz();
+  else renderQuestion();
+}
+
+function finishQuiz() {
+  $('progress-bar').style.width = '100%';
+  const total = state.questions.length;
+  const percent = Math.round(state.correctCount / total * 100);
+  const scores = getHighScores();
+  const bestBefore = scores.length ? Math.max(...scores.map(s => s.score)) : -1;
+  const isRecord = state.score > bestBefore && state.score > 0;
+
+  // simpan high score
+  saveHighScore({
+    name: state.name, score: state.score,
+    correct: state.correctCount, total, percent,
+    date: new Date().toISOString()
+  });
+
+  // perbarui statistik
+  const s = getStats();
+  s.games++;
+  s.totalCorrect += state.correctCount;
+  s.totalQuestions += total;
+  s.bestStreak = Math.max(s.bestStreak, state.bestStreak);
+  s.bestScore = Math.max(s.bestScore, state.score);
+  saveStats(s);
+
+  // tampilkan hasil
+  $('result-emoji').textContent = state.correctCount === total ? '🏆' : percent >= 70 ? '🎉' : percent >= 50 ? '😎' : percent >= 30 ? '🙂' : '😅';
+  $('result-title').textContent = state.correctCount === total ? 'Sempurna!' : percent >= 70 ? 'Hebat!' : percent >= 50 ? 'Bagus!' : percent >= 30 ? 'Cukup baik' : 'Tetap semangat belajar!';
+  $('result-score').innerHTML = `${state.score}<small> poin</small>`;
+  $('result-correct').textContent = `${state.correctCount}/${total}`;
+  $('result-accuracy').textContent = percent + '%';
+  $('result-streak').textContent = state.bestStreak;
+  $('new-record').classList.toggle('hidden', !isRecord);
+
+  showScreen('result-screen');
+  if (percent >= 70 || isRecord) { launchConfetti(); Sound.victory(); }
+}
+
+function quitQuiz() {
+  if (confirm('Keluar dari quiz? Skor sesi ini tidak akan disimpan.')) {
+    clearInterval(state.timerId);
+    Sound.click();
+    showScreen('start-screen');
+  }
+}
+
+/* ============================================================
+   TIMER MELINGKAR (SVG) — BONUS
+============================================================ */
+function startTimer() {
+  clearInterval(state.timerId);
+  state.timeLeft = TIME_PER_QUESTION;
+
+  const circle = $('timer-circle'), text = $('timer-text');
+  circle.style.transition = 'none';
+  circle.style.strokeDashoffset = 0;
+  circle.classList.remove('danger');
+  text.classList.remove('danger');
+  text.textContent = state.timeLeft;
+  void circle.getBoundingClientRect();          // paksa reflow agar reset instan
+  circle.style.transition = 'stroke-dashoffset 1s linear, stroke .3s';
+
+  state.timerId = setInterval(() => {
+    state.timeLeft--;
+    text.textContent = state.timeLeft;
+    circle.style.strokeDashoffset = 283 * (1 - state.timeLeft / TIME_PER_QUESTION);
+    if (state.timeLeft <= 5 && state.timeLeft > 0) {
+      circle.classList.add('danger');
+      text.classList.add('danger');
+      Sound.tick();
+    }
+    if (state.timeLeft <= 0) {
+      clearInterval(state.timerId);
+      handleTimeout();
+    }
+  }, 1000);
+}
+
+/* ============================================================
+   LIFELINE 50:50 — sekali per sesi
+============================================================ */
+function useLifeline() {
+  if (state.lifelineUsed || state.locked) return;
+  state.lifelineUsed = true;
+
+  const q = state.questions[state.current];
+  const wrongIdxs = q.options.map((o, i) => ({ o, i })).filter(x => !x.o.correct).map(x => x.i);
+  shuffle(wrongIdxs).slice(0, 2).forEach(i => {
+    document.querySelectorAll('.answer-btn')[i].classList.add('eliminated');
+  });
+
+  const btn = $('btn-lifeline');
+  btn.disabled = true;
+  btn.textContent = '✂️ 50:50 (terpakai)';
+  Sound.click();
+}
+
+/* ============================================================
+   UI KECIL: skor, streak, feedback, poin melayang
+============================================================ */
+function updateMetaUI() {
+  $('score-live').textContent = 'Skor: ' + state.score;
+  $('streak-live').textContent = '🔥 x' + state.streak;
+}
+function showFeedback(text, cls) {
+  const el = $('feedback');
+  el.textContent = text;
+  el.className = '';
+  if (cls) el.classList.add(cls);
+}
+function showPoints(pts) {
+  const el = document.createElement('span');
+  el.className = 'points-float';
+  el.textContent = '+' + pts;
+  $('score-wrap').appendChild(el);
+  setTimeout(() => el.remove(), 1100);
+}
+
+/* ============================================================
+   RENDER: REVIEW, HIGH SCORES, STATISTIK
+============================================================ */
+function renderReview() {
+  const list = $('review-list');
+  list.innerHTML = state.answersLog.map((log, i) => {
+    const cls = log.isCorrect ? 'correct' : 'wrong';
+    let answerLine;
+    if (log.chosenText === null)
+      answerLine = '<span class="tag tag-bad">⏰ Tidak dijawab (waktu habis)</span>';
+    else if (log.isCorrect)
+      answerLine = `<span class="tag tag-good">✔ ${log.chosenText}</span>`;
+    else
+      answerLine = `<span class="tag tag-bad">✘ Jawabanmu: ${log.chosenText}</span>`;
+    const keyLine = log.isCorrect ? '' :
+      `<p class="review-line"><span class="tag tag-key">Kunci: ${log.correctText}</span></p>`;
+    return `
+      <div class="review-item ${cls}">
+        <p class="review-q">${i + 1}. ${escapeHTML(log.question)}
+          <span class="topic-badge t-${log.topic.toLowerCase()}">${log.topic}</span></p>
+        <p class="review-line">${answerLine}</p>
+        ${keyLine}
+        <p class="review-exp">💡 ${log.explanation}</p>
+      </div>`;
+  }).join('');
+}
+
+function renderHighScores() {
+  const scores = getHighScores();
+  const list = $('highscore-list');
+  if (!scores.length) {
+    list.innerHTML = '<p class="empty">Belum ada skor tersimpan.<br>Mainkan quiz dan jadilah yang pertama! 🚀</p>';
+    return;
+  }
+  const medals = ['🥇', '🥈', '🥉'];
+  list.innerHTML = scores.map((s, i) => {
+    const d = new Date(s.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `
+      <div class="hs-item">
+        <span class="hs-rank">${i < 3 ? medals[i] : i + 1}</span>
+        <div class="hs-info">
+          <span class="hs-name">${escapeHTML(s.name)}</span>
+          <span class="hs-date">${d}</span>
+        </div>
+        <div class="hs-right">
+          <span class="hs-score">${s.score} poin</span>
+          <span class="hs-sub">${s.correct}/${s.total} (${s.percent}%)</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderStats() {
+  const s = getStats();
+  $('stat-games').textContent = s.games;
+  $('stat-accuracy').textContent = s.totalQuestions ? Math.round(s.totalCorrect / s.totalQuestions * 100) + '%' : '—';
+  $('stat-total-correct').textContent = s.totalCorrect;
+  $('stat-best-streak').textContent = s.bestStreak;
+  $('stat-best-score').textContent = s.bestScore;
+}
+
+/* ============================================================
+   KONFETI (canvas) saat hasil bagui / rekor baru
+============================================================ */
+function launchConfetti(ms = 2800) {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'confetti-canvas';
+  canvas.width = innerWidth; canvas.height = innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const colors = ['#7c5cff', '#00d9ff', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
+  const parts = Array.from({ length: 130 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20 - Math.random() * canvas.height * .5,
+    w: 6 + Math.random() * 6, h: 8 + Math.random() * 8,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    vy: 2 + Math.random() * 3, vx: -1.5 + Math.random() * 3,
+    rot: Math.random() * Math.PI, vr: -.12 + Math.random() * .24
+  }));
+  const start = performance.now();
+  (function frame(now) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    parts.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    if (now - start < ms) requestAnimationFrame(frame);
+    else canvas.remove();
+  })(start);
+}
+
+/* ============================================================
+   TEMA & SUARA (tersimpan di localStorage)
+============================================================ */
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('quiz_theme', t);
+  $('btn-theme').textContent = t === 'light' ? '🌙' : '☀️';
+}
+
+/* ============================================================
+   EVENT LISTENER TOMBOL
+============================================================ */
+ $('btn-start').addEventListener('click', startQuiz);
+ $('btn-again').addEventListener('click', startQuiz);
+ $('btn-review').addEventListener('click', () => { renderReview(); showScreen('review-screen'); });
+ $('btn-back-result').addEventListener('click', () => showScreen('result-screen'));
+ $('btn-highscores').addEventListener('click', () => showScreen('highscore-screen'));
+ $('btn-highscores-2').addEventListener('click', () => showScreen('highscore-screen'));
+ $('btn-stats').addEventListener('click', () => showScreen('stats-screen'));
+ $('btn-home').addEventListener('click', () => showScreen('start-screen'));
+ $('btn-home-2').addEventListener('click', () => showScreen('start-screen'));
+ $('btn-back').addEventListener('click', () => showScreen('start-screen'));
+ $('btn-back-2').addEventListener('click', () => showScreen('start-screen'));
+ $('btn-quit').addEventListener('click', quitQuiz);
+ $('btn-lifeline').addEventListener('click', useLifeline);
+
+ $('btn-clear').addEventListener('click', () => {
+  if (confirm('Hapus semua skor yang tersimpan?')) {
+    localStorage.removeItem(HS_KEY);
+    renderHighScores();
+    updateBestScore();
+  }
+});
+ $('btn-reset-stats').addEventListener('click', () => {
+  if (confirm('Reset semua statistik permainan?')) {
+    localStorage.removeItem(STAT_KEY);
+    renderStats();
+  }
+});
+
+ $('btn-sound').addEventListener('click', () => {
+  Sound.enabled = !Sound.enabled;
+  localStorage.setItem('quiz_sound', JSON.stringify(Sound.enabled));
+  $('btn-sound').textContent = Sound.enabled ? '🔊' : '🔇';
+  if (Sound.enabled) Sound.click();
+});
+ $('btn-theme').addEventListener('click', () => {
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+});
+
+// Enter pada input nama = mulai quiz
+ $('player-name').addEventListener('keydown', e => { if (e.key === 'Enter') startQuiz(); });
+
+/* ============================================================
+   INISIALISASI
+============================================================ */
+applyTheme(localStorage.getItem('quiz_theme') || 'dark');
+ $('btn-sound').textContent = Sound.enabled ? '🔊' : '🔇';
+showScreen('start-screen');
+</script>
+</body>
+</html>
